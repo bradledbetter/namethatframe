@@ -1,5 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+const imageSize = require('image-size');
+const PptxGenJs = require('pptxgenjs');
+const MAX_IMAGE_WIDTH_PX = 958;
+const MAX_IMAGE_HEIGHT_PX = 540;
+let delta = 0;
 
 /**
  * Write the movie names and slide list files
@@ -15,7 +20,6 @@ function writeSlideTextFiles(category, movieNames, slideList, callback) {
             console.error(err);
             process.exit();
         }
-        fs.close(category, () => {});
 
         fs.writeFile(path.join('.', category, 'slide-list.txt'), slideList, (err) => {
             if (err) {
@@ -51,7 +55,8 @@ function filterFilenames(filenames) {
     // format the names
     let lines = [];
     filenames.forEach((filename) => {
-        if (!['.', '..'].includes(filename)) {
+        // only include image files
+        if (filename.match(/\.(png|jpg|gif)$/) !== null) {
             let line = filename.substr(0, filename.lastIndexOf('.'));
             line = titleCase(line);
             lines.push(line + '\n');
@@ -112,7 +117,8 @@ function getDirectories(callback) {
         const ignoreDirs = ['.', '..', 'node_modules'];
         const directories = [];
         dirItems.forEach((dirItem) => {
-            if (!ignoreDirs.includes(dirItem)) {
+            // ignore certain directories, and hidden folders
+            if (!ignoreDirs.includes(dirItem) && dirItem.match(/^\./) === null) {
                 const stats = fs.statSync(dirItem);
                 if (stats.isDirectory()) {
                     directories.push(dirItem);
@@ -128,6 +134,7 @@ function getDirectories(callback) {
 
 // let's do this
 getDirectories((directories) => {
+    let writeCount = 0;
     directories.forEach((category) => {
         fs.readdir(path.join('.', category), (err, filenames) => {
             if (err) {
@@ -139,7 +146,68 @@ getDirectories((directories) => {
             const output = filterFilenames(filenames);
             const shuffled = fyShuffle(output);// shuffle the array for slide output
             writeSlideTextFiles(category, output.join(''), shuffled.join(''), (slideList) => {
-                // TODO: create a pptx
+                // create a pptx
+                const pptx = new PptxGenJs();
+                pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
+
+                slideList.forEach((slideFilename, slideIndex) => {
+                    const slidePath = path.join('.', category, slideFilename);
+                    const slide = pptx.addNewSlide();
+                    slide.back = '000000';
+                    slide.color = 'FFFFFF';
+                    slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
+
+                    // get image size synchronously. Probably slow, but easy to code.
+                    const imgDim = imageSize(slidePath);
+                    const newImgDim = {
+                        width: imgDim.width,
+                        height: imgDim.height
+                    };
+
+                    // TODO: I'm shooting from the hip here, so I need to test
+                    // scale the largest dimension
+                    delta = 0;
+                    if (imgDim.width >= imgDim.height) {
+                        // landscape
+                        newImgDim.width = MAX_IMAGE_WIDTH_PX;
+                        newImgDim.height = imgDim.height * (imgDim.width / MAX_IMAGE_WIDTH_PX);
+
+                        // make sure height is still within bounds
+                        if (newImgDim.height > MAX_IMAGE_HEIGHT_PX) {
+                            // delta = newImgDim.height - MAX_IMAGE_HEIGHT_PX;
+                            newImgDim.width = newImgDim.width * (MAX_IMAGE_HEIGHT_PX / (newImgDim.height));
+                            newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                        }
+                    } else {
+                        // portrait
+                        newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                        newImgDim.width = imgDim.width * (imgDim.height / MAX_IMAGE_HEIGHT_PX);
+
+                        // make sure width is still within bounds (Should be, but y'know)
+                        if (newImgDim.width > MAX_IMAGE_WIDTH_PX) {
+                            // delta = newImgDim.width - MAX_IMAGE_WIDTH_PX;
+                            newImgDim.height = newImgDim.height * (MAX_IMAGE_WIDTH_PX / (newImgDim.width));
+                            newImgDim.width = MAX_IMAGE_WIDTH_PX;
+                        }
+                    }
+
+                    slide.addImage({
+                        path: slidePath,
+                        // centered
+                        x: Math.max((MAX_IMAGE_WIDTH_PX - newImgDim.width) / 2.0, 0),
+                        y: Math.max((MAX_IMAGE_HEIGHT_PX - newImgDim.height) / 2.0, 0),
+                        w: newImgDim.width,
+                        h: newImgDim.height
+                    });
+                });
+
+                // save the pptx
+                pptx.save(path.join('.', category, 'slideshow.pptx'), () => {
+                    // exit when done with all
+                    if (++writeCount === directories.length) {
+                        process.exit();
+                    }
+                });
             });
         });
     });
