@@ -57,3 +57,8 @@ typings/
 # dotenv environment variables file
 .env
 
+# specific to this repo
+*.txt
+*.pptx
+# ignore subdirectories
+**/

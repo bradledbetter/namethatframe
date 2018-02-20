@@ -1,0 +1,19 @@
+{
+  "name": "namethatframe",
+  "version": "0.0.1",
+  "description": "utility for this game that we are making",
+  "main": "list.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Brad Ledbetter <brad.ledbetter@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^4.18.0",
+    "eslint-config-google": "^0.9.1",
+    "eslint-plugin-import": "^2.8.0"
+  },
+  "dependencies": {
+    "pptxgenjs": "^2.0.0"
+  }
+}
