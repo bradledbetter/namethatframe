@@ -47,6 +47,20 @@ function titleCase(txt) {
 }
 
 /**
+ * Remove duplicates from an array of strings
+ * @param {Array<string>} items
+ */
+function removeDuplicates(items) {
+    let returnItems = [];
+    items.forEach((item) => {
+        if (!returnItems.includes(item)) {
+            returnItems.push(item);
+        }
+    });
+    return returnItems;
+}
+
+/**
  * Clean up individual filenames and eliminate duplicates
  * @param {Array} filenames
  * @return {Array}
@@ -63,18 +77,10 @@ function filterFilenames(filenames) {
         }
     });
 
-    // remove duplicates
-    let movieNames = [];
-    lines.forEach((line) => {
-        if (!movieNames.includes(line)) {
-            movieNames.push(line);
-        }
-    });
-
     // sort alphabetically
-    movieNames.sort();
+    lines.sort();
 
-    return movieNames;
+    return lines;
 }
 
 /**
@@ -143,62 +149,65 @@ getDirectories((directories) => {
                 });
             }
 
-            const output = filterFilenames(filenames);
-            const shuffled = fyShuffle(output);// shuffle the array for slide output
-            writeSlideTextFiles(category, output.join(''), shuffled.join(''), (slideList) => {
+            const deDuped = removeDuplicates(filenames);
+            const output = filterFilenames(deDuped);
+            const shuffled = fyShuffle(deDuped);// shuffle the array for slide output
+            writeSlideTextFiles(category, output.join(''), shuffled.join(''), () => {
                 // create a pptx
                 const pptx = new PptxGenJs();
                 pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
 
-                slideList.forEach((slideFilename, slideIndex) => {
-                    const slidePath = path.join('.', category, slideFilename);
-                    const slide = pptx.addNewSlide();
-                    slide.back = '000000';
-                    slide.color = 'FFFFFF';
-                    slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
+                shuffled.forEach((slideFilename, slideIndex) => {
+                    if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
+                        const slidePath = path.join('.', category, slideFilename);
+                        const slide = pptx.addNewSlide();
+                        slide.back = '000000';
+                        slide.color = 'FFFFFF';
+                        slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
 
-                    // get image size synchronously. Probably slow, but easy to code.
-                    const imgDim = imageSize(slidePath);
-                    const newImgDim = {
-                        width: imgDim.width,
-                        height: imgDim.height
-                    };
+                        // get image size synchronously. Probably slow, but easy to code.
+                        const imgDim = imageSize(slidePath);
+                        const newImgDim = {
+                            width: imgDim.width,
+                            height: imgDim.height
+                        };
 
-                    // TODO: I'm shooting from the hip here, so I need to test
-                    // scale the largest dimension
-                    delta = 0;
-                    if (imgDim.width >= imgDim.height) {
-                        // landscape
-                        newImgDim.width = MAX_IMAGE_WIDTH_PX;
-                        newImgDim.height = imgDim.height * (imgDim.width / MAX_IMAGE_WIDTH_PX);
-
-                        // make sure height is still within bounds
-                        if (newImgDim.height > MAX_IMAGE_HEIGHT_PX) {
-                            // delta = newImgDim.height - MAX_IMAGE_HEIGHT_PX;
-                            newImgDim.width = newImgDim.width * (MAX_IMAGE_HEIGHT_PX / (newImgDim.height));
-                            newImgDim.height = MAX_IMAGE_HEIGHT_PX;
-                        }
-                    } else {
-                        // portrait
-                        newImgDim.height = MAX_IMAGE_HEIGHT_PX;
-                        newImgDim.width = imgDim.width * (imgDim.height / MAX_IMAGE_HEIGHT_PX);
-
-                        // make sure width is still within bounds (Should be, but y'know)
-                        if (newImgDim.width > MAX_IMAGE_WIDTH_PX) {
-                            // delta = newImgDim.width - MAX_IMAGE_WIDTH_PX;
-                            newImgDim.height = newImgDim.height * (MAX_IMAGE_WIDTH_PX / (newImgDim.width));
+                        // TODO: I'm shooting from the hip here, so I need to test
+                        // scale the largest dimension
+                        delta = 0;
+                        if (imgDim.width >= imgDim.height) {
+                            // landscape
                             newImgDim.width = MAX_IMAGE_WIDTH_PX;
-                        }
-                    }
+                            newImgDim.height = imgDim.height * (imgDim.width / MAX_IMAGE_WIDTH_PX);
 
-                    slide.addImage({
-                        path: slidePath,
-                        // centered
-                        x: Math.max((MAX_IMAGE_WIDTH_PX - newImgDim.width) / 2.0, 0),
-                        y: Math.max((MAX_IMAGE_HEIGHT_PX - newImgDim.height) / 2.0, 0),
-                        w: newImgDim.width,
-                        h: newImgDim.height
-                    });
+                            // make sure height is still within bounds
+                            if (newImgDim.height > MAX_IMAGE_HEIGHT_PX) {
+                                // delta = newImgDim.height - MAX_IMAGE_HEIGHT_PX;
+                                newImgDim.width = newImgDim.width * (MAX_IMAGE_HEIGHT_PX / (newImgDim.height));
+                                newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                            }
+                        } else {
+                            // portrait
+                            newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                            newImgDim.width = imgDim.width * (imgDim.height / MAX_IMAGE_HEIGHT_PX);
+
+                            // make sure width is still within bounds (Should be, but y'know)
+                            if (newImgDim.width > MAX_IMAGE_WIDTH_PX) {
+                                // delta = newImgDim.width - MAX_IMAGE_WIDTH_PX;
+                                newImgDim.height = newImgDim.height * (MAX_IMAGE_WIDTH_PX / (newImgDim.width));
+                                newImgDim.width = MAX_IMAGE_WIDTH_PX;
+                            }
+                        }
+
+                        slide.addImage({
+                            path: slidePath,
+                            // centered
+                            x: Math.max((MAX_IMAGE_WIDTH_PX - newImgDim.width) / 2.0, 0),
+                            y: Math.max((MAX_IMAGE_HEIGHT_PX - newImgDim.height) / 2.0, 0),
+                            w: newImgDim.width,
+                            h: newImgDim.height
+                        });
+                    }
                 });
 
                 // save the pptx
