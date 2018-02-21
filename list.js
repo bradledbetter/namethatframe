@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const imageSize = require('image-size');
+// const imageSize = require('image-size');
+const sharp = require('sharp');
 const PptxGenJs = require('pptxgenjs');
 const MAX_IMAGE_WIDTH_PX = 958;
 const MAX_IMAGE_HEIGHT_PX = 540;
@@ -160,52 +161,60 @@ getDirectories((directories) => {
                 shuffled.forEach((slideFilename, slideIndex) => {
                     if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
                         const slidePath = path.join('.', category, slideFilename);
+                        console.log(`${slideIndex}: ${slidePath}5`);
                         const slide = pptx.addNewSlide();
                         slide.back = '000000';
                         slide.color = 'FFFFFF';
                         slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
 
                         // get image size synchronously. Probably slow, but easy to code.
-                        const imgDim = imageSize(slidePath);
-                        const newImgDim = {
-                            width: imgDim.width,
-                            height: imgDim.height
-                        };
-
-                        // TODO: I'm shooting from the hip here, so I need to test
-                        // scale the largest dimension
-                        delta = 0;
-                        if (imgDim.width >= imgDim.height) {
-                            // landscape
-                            newImgDim.width = MAX_IMAGE_WIDTH_PX;
-                            newImgDim.height = imgDim.height * (imgDim.width / MAX_IMAGE_WIDTH_PX);
-
-                            // make sure height is still within bounds
-                            if (newImgDim.height > MAX_IMAGE_HEIGHT_PX) {
-                                // delta = newImgDim.height - MAX_IMAGE_HEIGHT_PX;
-                                newImgDim.width = newImgDim.width * (MAX_IMAGE_HEIGHT_PX / (newImgDim.height));
-                                newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                        const image = sharp(slidePath);
+                        image.metadata((err, imgData) => {
+                            if (err) {
+                                console.error(err);
+                                process.exit();
                             }
-                        } else {
-                            // portrait
-                            newImgDim.height = MAX_IMAGE_HEIGHT_PX;
-                            newImgDim.width = imgDim.width * (imgDim.height / MAX_IMAGE_HEIGHT_PX);
 
-                            // make sure width is still within bounds (Should be, but y'know)
-                            if (newImgDim.width > MAX_IMAGE_WIDTH_PX) {
-                                // delta = newImgDim.width - MAX_IMAGE_WIDTH_PX;
-                                newImgDim.height = newImgDim.height * (MAX_IMAGE_WIDTH_PX / (newImgDim.width));
+                            const newImgDim = {
+                                width: imgData.width,
+                                height: imgData.height
+                            };
+
+                            // TODO: I'm shooting from the hip here, so I need to test
+                            // scale the largest dimension
+                            delta = 0;
+                            if (imgData.width >= imgData.height) {
+                                // landscape
                                 newImgDim.width = MAX_IMAGE_WIDTH_PX;
-                            }
-                        }
+                                newImgDim.height = imgData.height * (imgData.width / MAX_IMAGE_WIDTH_PX);
 
-                        slide.addImage({
-                            path: slidePath,
-                            // centered
-                            x: Math.max((MAX_IMAGE_WIDTH_PX - newImgDim.width) / 2.0, 0),
-                            y: Math.max((MAX_IMAGE_HEIGHT_PX - newImgDim.height) / 2.0, 0),
-                            w: newImgDim.width,
-                            h: newImgDim.height
+                                // make sure height is still within bounds
+                                if (newImgDim.height > MAX_IMAGE_HEIGHT_PX) {
+                                    // delta = newImgDim.height - MAX_IMAGE_HEIGHT_PX;
+                                    newImgDim.width = newImgDim.width * (MAX_IMAGE_HEIGHT_PX / (newImgDim.height));
+                                    newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                                }
+                            } else {
+                                // portrait
+                                newImgDim.height = MAX_IMAGE_HEIGHT_PX;
+                                newImgDim.width = imgData.width * (imgData.height / MAX_IMAGE_HEIGHT_PX);
+
+                                // make sure width is still within bounds (Should be, but y'know)
+                                if (newImgDim.width > MAX_IMAGE_WIDTH_PX) {
+                                    // delta = newImgDim.width - MAX_IMAGE_WIDTH_PX;
+                                    newImgDim.height = newImgDim.height * (MAX_IMAGE_WIDTH_PX / (newImgDim.width));
+                                    newImgDim.width = MAX_IMAGE_WIDTH_PX;
+                                }
+                            }
+
+                            slide.addImage({
+                                path: slidePath,
+                                // centered
+                                x: Math.max((MAX_IMAGE_WIDTH_PX - newImgDim.width) / 2.0, 0),
+                                y: Math.max((MAX_IMAGE_HEIGHT_PX - newImgDim.height) / 2.0, 0),
+                                w: newImgDim.width,
+                                h: newImgDim.height
+                            });
                         });
                     }
                 });
