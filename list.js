@@ -178,38 +178,7 @@ getDirectories((directories) => {
                                             process.exit();
                                         }
 
-                                        const newImgDim = {
-                                            width: imgData.width,
-                                            height: imgData.height
-                                        };
-
-                                        // TODO: I'm shooting from the hip here, so I need to test
-                                        // scale the largest dimension
-                                        delta = 0;
-                                        if (imgData.width >= imgData.height) {
-                                            // landscape
-                                            newImgDim.width = MAX_IMAGE_WIDTH_PX;
-                                            newImgDim.height = imgData.height * (imgData.width / MAX_IMAGE_WIDTH_PX);
-
-                                            // make sure height is still within bounds
-                                            if (newImgDim.height > MAX_IMAGE_HEIGHT_PX) {
-                                                // delta = newImgDim.height - MAX_IMAGE_HEIGHT_PX;
-                                                newImgDim.width = newImgDim.width * (MAX_IMAGE_HEIGHT_PX / (newImgDim.height));
-                                                newImgDim.height = MAX_IMAGE_HEIGHT_PX;
-                                            }
-                                        } else {
-                                            // portrait
-                                            newImgDim.height = MAX_IMAGE_HEIGHT_PX;
-                                            newImgDim.width = imgData.width * (imgData.height / MAX_IMAGE_HEIGHT_PX);
-
-                                            // make sure width is still within bounds (Should be, but y'know)
-                                            if (newImgDim.width > MAX_IMAGE_WIDTH_PX) {
-                                                // delta = newImgDim.width - MAX_IMAGE_WIDTH_PX;
-                                                newImgDim.height = newImgDim.height * (MAX_IMAGE_WIDTH_PX / (newImgDim.width));
-                                                newImgDim.width = MAX_IMAGE_WIDTH_PX;
-                                            }
-                                        }
-                                        // TODO: this apparently is broken
+                                        // NOTE: we need to include the original width and height for the aspect ratio to be maintained
                                         slide.addImage({
                                             path: slidePath,
                                             x: 0,
@@ -234,10 +203,9 @@ getDirectories((directories) => {
                     // wait to save until all are done.
                     Promise.all(allSlidePromises).then(() => {
                         // save the pptx
-                        const filePath =
-                            pptx.save(path.join('.', category, 'slideshow.pptx'), (filename) => {
-                                fileResolve(filename);
-                            });
+                        pptx.save(path.join('.', category, 'slideshow.pptx'), (filename) => {
+                            fileResolve(filename);
+                        });
                     }, (err) => {
                         fileReject(err);
                     });
@@ -246,9 +214,10 @@ getDirectories((directories) => {
         }));
     });
 
-    // TODO: do some Promise.all thing to get exit here
+    // log a message when the file writes have been called
+    // it seems we can wait for the program to exit on its own when all the disk operations are done..?
     Promise.all(allFilePromises).then(() => {
-        setTimeout(process.exit, 60000);
+        console.log('Finishing up file writing, then exiting...');
     }, (err) => {
         console.error(err);
         process.exit(1);
