@@ -164,7 +164,7 @@ getDirectories((directories) => {
                             allSlidePromises.push(new Promise((resolve, reject) => {
                                 try {
                                     const slidePath = path.join('.', category, slideFilename);
-                                    console.log(`${slideIndex}: ${slidePath}5`);
+                                    console.log(`${slideIndex}: ${slidePath}`);
                                     const slide = pptx.addNewSlide();
                                     slide.back = '000000';
                                     slide.color = 'FFFFFF';
@@ -212,17 +212,14 @@ getDirectories((directories) => {
                                         // TODO: this apparently is broken
                                         slide.addImage({
                                             path: slidePath,
-                                            // centered
-                                            x: 0,//Math.max((MAX_IMAGE_WIDTH_PX - newImgDim.width) / 2.0, 0),
-                                            y: 0,//Math.max((MAX_IMAGE_HEIGHT_PX - newImgDim.height) / 2.0, 0),
-                                            w: imgData.width,
-                                            h: imgData.height,
+                                            x: 0,
+                                            y: 0,
+                                            w: imgData.width / 72,
+                                            h: imgData.height / 72,
                                             sizing: {
                                                 type: 'contain',
-                                                x: 0,
-                                                y: 0,
-                                                w: MAX_IMAGE_WIDTH_PX,
-                                                h: MAX_IMAGE_HEIGHT_PX
+                                                w: MAX_IMAGE_WIDTH_PX / 72,
+                                                h: MAX_IMAGE_HEIGHT_PX / 72
                                             }
                                         });
                                         resolve(slideFilename);
@@ -251,7 +248,7 @@ getDirectories((directories) => {
 
     // TODO: do some Promise.all thing to get exit here
     Promise.all(allFilePromises).then(() => {
-        process.exit();
+        setTimeout(process.exit, 60000);
     }, (err) => {
         console.error(err);
         process.exit(1);
