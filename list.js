@@ -1,11 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-// const imageSize = require('image-size');
+const moment = require('moment');
 const sharp = require('sharp');
 const PptxGenJs = require('pptxgenjs');
 const MAX_IMAGE_WIDTH_PX = 958;
 const MAX_IMAGE_HEIGHT_PX = 540;
 let delta = 0;
+const todayStamp = moment().format('YYYY-MM-DD');
 
 /**
  * Write the movie names and slide list files
@@ -16,13 +17,13 @@ let delta = 0;
  */
 function writeSlideTextFiles(category, movieNames, slideList, callback) {
     // write the movie name file
-    fs.writeFile(path.join('.', category, 'movie-names.txt'), movieNames, (err) => {
+    fs.writeFile(path.join('.', category, `movie-names-${todayStamp}.txt`), movieNames, (err) => {
         if (err) {
             console.error(err);
             process.exit();
         }
 
-        fs.writeFile(path.join('.', category, 'slide-list.txt'), slideList, (err) => {
+        fs.writeFile(path.join('.', category, `slide-list-${todayStamp}.txt`), slideList, (err) => {
             if (err) {
                 console.error(err);
                 process.exit();
@@ -139,6 +140,71 @@ function getDirectories(callback) {
     });
 }
 
+/**
+ * Write out a pptx slideshow
+ * @param {string} category slide folder name
+ * @param {Array<string>} slides random order list of slides
+ * @param {Function} fileResolve resolve when the file is written
+ * @param {Function} fileReject reject if there's an error
+ */
+function writePptx(category, slides, fileResolve, fileReject) {
+    // create a pptx
+    const pptx = new PptxGenJs();
+    pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
+
+    const allSlidePromises = [];
+    slides.forEach((slideFilename, slideIndex) => {
+        if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
+            allSlidePromises.push(new Promise((resolve, reject) => {
+                try {
+                    const slidePath = path.join('.', category, slideFilename);
+                    console.log(`${slideIndex}: ${slidePath}`);
+                    const slide = pptx.addNewSlide();
+                    slide.back = '000000';
+                    slide.color = 'FFFFFF';
+                    slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
+
+                    // get image size synchronously. Probably slow, but easy to code.
+                    const image = sharp(slidePath);
+                    image.metadata((err, imgData) => {
+                        if (err) {
+                            console.error(err);
+                            process.exit();
+                        }
+
+                        // NOTE: we need to include the original width and height for the aspect ratio to be maintained
+                        slide.addImage({
+                            path: slidePath,
+                            x: 0,
+                            y: 0,
+                            w: imgData.width / 72,
+                            h: imgData.height / 72,
+                            sizing: {
+                                type: 'contain',
+                                w: MAX_IMAGE_WIDTH_PX / 72,
+                                h: MAX_IMAGE_HEIGHT_PX / 72
+                            }
+                        });
+                        resolve(slideFilename);
+                    });
+                } catch (ex) {
+                    reject(ex);
+                }
+            }));
+        }
+    });
+
+    // wait to save until all are done.
+    Promise.all(allSlidePromises).then(() => {
+        // save the pptx
+        pptx.save(path.join('.', category, `name-that-frame-${todayStamp}.pptx`), (filename) => {
+            fileResolve(filename);
+        });
+    }, (err) => {
+        fileReject(err);
+    });
+}
+
 // let's do this
 getDirectories((directories) => {
     let writeCount = 0;
@@ -151,65 +217,11 @@ getDirectories((directories) => {
                 }
 
                 const deDuped = removeDuplicates(filenames);
-                const output = filterFilenames(deDuped);
-                const shuffled = fyShuffle(deDuped);// shuffle the array for slide output
-                writeSlideTextFiles(category, output.join(''), shuffled.join(''), () => {
-                    // create a pptx
-                    const pptx = new PptxGenJs();
-                    pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
-
-                    const allSlidePromises = [];
-                    shuffled.forEach((slideFilename, slideIndex) => {
-                        if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
-                            allSlidePromises.push(new Promise((resolve, reject) => {
-                                try {
-                                    const slidePath = path.join('.', category, slideFilename);
-                                    console.log(`${slideIndex}: ${slidePath}`);
-                                    const slide = pptx.addNewSlide();
-                                    slide.back = '000000';
-                                    slide.color = 'FFFFFF';
-                                    slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
-
-                                    // get image size synchronously. Probably slow, but easy to code.
-                                    const image = sharp(slidePath);
-                                    image.metadata((err, imgData) => {
-                                        if (err) {
-                                            console.error(err);
-                                            process.exit();
-                                        }
-
-                                        // NOTE: we need to include the original width and height for the aspect ratio to be maintained
-                                        slide.addImage({
-                                            path: slidePath,
-                                            x: 0,
-                                            y: 0,
-                                            w: imgData.width / 72,
-                                            h: imgData.height / 72,
-                                            sizing: {
-                                                type: 'contain',
-                                                w: MAX_IMAGE_WIDTH_PX / 72,
-                                                h: MAX_IMAGE_HEIGHT_PX / 72
-                                            }
-                                        });
-                                        resolve(slideFilename);
-                                    });
-                                } catch (ex) {
-                                    reject(ex);
-                                }
-                            }));
-                        }
-                    });
-
-                    // wait to save until all are done.
-                    Promise.all(allSlidePromises).then(() => {
-                        // save the pptx
-                        pptx.save(path.join('.', category, 'slideshow.pptx'), (filename) => {
-                            fileResolve(filename);
-                        });
-                    }, (err) => {
-                        fileReject(err);
-                    });
-                });
+                let shuffled = fyShuffle(deDuped); // shuffle the array for slide output
+                shuffled = shuffled.slice(0, 100); // take the top 100
+                const output = filterFilenames(shuffled); // clean up the names for bingo cards
+                writeSlideTextFiles(category, output.join(''), shuffled.join(''),
+                    writePptx.call(writePptx, category, shuffled, fileResolve, fileReject));
             });
         }));
     });
