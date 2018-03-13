@@ -151,6 +151,17 @@ function writePptx(category, slides, fileResolve, fileReject) {
     // create a pptx
     const pptx = new PptxGenJs();
     pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
+    pptx.defineSlideMaster({
+        title: 'MAIN',
+        bkgd: '000000',
+        slideNumber: {
+            x: '90%', y: '90%',
+            fontFace: 'Courier',
+            fontSize: 16,
+            color: 'FFFFFF'
+        }
+    });
+
 
     const allSlidePromises = [];
     slides.forEach((slideFilename, slideIndex) => {
@@ -159,10 +170,15 @@ function writePptx(category, slides, fileResolve, fileReject) {
                 try {
                     const slidePath = path.join('.', category, slideFilename);
                     console.log(`${slideIndex}: ${slidePath}`);
-                    const slide = pptx.addNewSlide();
-                    slide.back = '000000';
-                    slide.color = 'FFFFFF';
-                    slide.slideNumber({x: '90%', y: '90%', fontFace: 'Courier', fontSize: 16, color: 'FFFFFF'});
+                    const slide = pptx.addNewSlide('MAIN');
+                    // slide.back = '000000';
+                    // slide.color = 'FFFFFF';
+                    // slide.slideNumber({
+                    // x: '90%', y: '90%',
+                    // fontFace: 'Courier',
+                    // fontSize: 16,
+                    // color: 'FFFFFF'
+                    // });
 
                     // get image size synchronously. Probably slow, but easy to code.
                     const image = sharp(slidePath);
@@ -205,6 +221,19 @@ function writePptx(category, slides, fileResolve, fileReject) {
     });
 }
 
+/**
+ * Numbers items in an array and joins with \n
+ * @param {[string]} slides
+ * @return {String}
+ */
+function numberAndJoin(slides) {
+    const retArray = [];
+    slides.forEach((item, index) => {
+        retArray.push(`${index + 1}. ${item}`);
+    });
+    return retArray.join('\n');
+}
+
 // let's do this
 getDirectories((directories) => {
     let writeCount = 0;
@@ -220,7 +249,7 @@ getDirectories((directories) => {
                 let shuffled = fyShuffle(deDuped); // shuffle the array for slide output
                 shuffled = shuffled.slice(0, 100); // take the top 100
                 const output = filterFilenames(shuffled); // clean up the names for bingo cards
-                writeSlideTextFiles(category, output.join(''), shuffled.join(''),
+                writeSlideTextFiles(category, output.join('\n'), numberAndJoin(shuffled),
                     writePptx.call(writePptx, category, shuffled, fileResolve, fileReject));
             });
         }));
