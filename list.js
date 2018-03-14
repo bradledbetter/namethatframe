@@ -249,7 +249,7 @@ getDirectories((directories) => {
                 let shuffled = fyShuffle(deDuped); // shuffle the array for slide output
                 shuffled = shuffled.slice(0, 100); // take the top 100
                 const output = filterFilenames(shuffled); // clean up the names for bingo cards
-                writeSlideTextFiles(category, output.join('\n'), numberAndJoin(shuffled),
+                writeSlideTextFiles(category, output.join(''), numberAndJoin(shuffled),
                     writePptx.call(writePptx, category, shuffled, fileResolve, fileReject));
             });
         }));
