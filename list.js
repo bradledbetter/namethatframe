@@ -55,11 +55,29 @@ function titleCase(txt) {
 function removeDuplicates(items) {
     let returnItems = [];
     items.forEach((item) => {
-        if (!returnItems.includes(item)) {
+        if (!returnItems.includes(item) && item !== 'desktop.ini') {
             returnItems.push(item);
         }
     });
     return returnItems;
+}
+
+/**
+ * Removes (\d{4}) from the end of a filename
+ * @param {string} filename
+ * @return {string}
+ */
+function removeYear(filename) {
+    return filename.replace(/\(?\d{4}\)?$/g, '');
+}
+
+/**
+ * Cut the first len items off of an array and return it
+ * @param {array} ra
+ * @param {number} len
+ */
+function limitArrayTo(ra, len) {
+    return ra.slice(0, len);
 }
 
 /**
@@ -246,8 +264,9 @@ getDirectories((directories) => {
                 }
 
                 const deDuped = removeDuplicates(filenames);
+
                 let shuffled = fyShuffle(deDuped); // shuffle the array for slide output
-                shuffled = shuffled.slice(0, 100); // take the top 100
+                shuffled = limitArrayTo(shuffled, 75); // take the top x
                 const output = filterFilenames(shuffled); // clean up the names for bingo cards
                 writeSlideTextFiles(category, output.join(''), numberAndJoin(shuffled),
                     writePptx.call(writePptx, category, shuffled, fileResolve, fileReject));
