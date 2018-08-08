@@ -5,7 +5,6 @@ const sharp = require('sharp');
 const PptxGenJs = require('pptxgenjs');
 const MAX_IMAGE_WIDTH_PX = 958;
 const MAX_IMAGE_HEIGHT_PX = 540;
-let delta = 0;
 const todayStamp = moment().format('YYYY-MM-DD');
 
 /**
@@ -60,15 +59,6 @@ function removeDuplicates(items) {
         }
     });
     return returnItems;
-}
-
-/**
- * Removes (\d{4}) from the end of a filename
- * @param {string} filename
- * @return {string}
- */
-function removeYear(filename) {
-    return filename.replace(/\(?\d{4}\)?$/g, '');
 }
 
 /**
@@ -171,13 +161,7 @@ function writePptx(category, slides, fileResolve, fileReject) {
     pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
     pptx.defineSlideMaster({
         title: 'MAIN',
-        bkgd: '000000',
-        slideNumber: {
-            x: '90%', y: '90%',
-            fontFace: 'Courier',
-            fontSize: 16,
-            color: 'FFFFFF'
-        }
+        bkgd: '000000'
     });
 
 
@@ -189,14 +173,6 @@ function writePptx(category, slides, fileResolve, fileReject) {
                     const slidePath = path.join('.', category, slideFilename);
                     console.log(`${slideIndex}: ${slidePath}`);
                     const slide = pptx.addNewSlide('MAIN');
-                    // slide.back = '000000';
-                    // slide.color = 'FFFFFF';
-                    // slide.slideNumber({
-                    // x: '90%', y: '90%',
-                    // fontFace: 'Courier',
-                    // fontSize: 16,
-                    // color: 'FFFFFF'
-                    // });
 
                     // get image size synchronously. Probably slow, but easy to code.
                     const image = sharp(slidePath);
@@ -254,7 +230,6 @@ function numberAndJoin(slides) {
 
 // let's do this
 getDirectories((directories) => {
-    let writeCount = 0;
     const allFilePromises = [];
     directories.forEach((category) => {
         allFilePromises.push(new Promise((fileResolve, fileReject) => {
