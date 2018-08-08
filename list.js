@@ -148,24 +148,19 @@ function getDirectories(callback) {
     });
 }
 
+const allSlidePromises = [];
+
 /**
- * Write out a pptx slideshow
+ * Add to pptx slideshow
  * @param {string} category slide folder name
  * @param {Array<string>} slides random order list of slides
- * @param {Function} fileResolve resolve when the file is written
- * @param {Function} fileReject reject if there's an error
+ * @param {object} pptx PPTX instance
  */
-function writePptx(category, slides, fileResolve, fileReject) {
-    // create a pptx
-    const pptx = new PptxGenJs();
-    pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
-    pptx.defineSlideMaster({
-        title: 'MAIN',
-        bkgd: '000000'
-    });
+function writePptx(category, slides, pptx) {
 
+    // add round title TODO: text
+    pptx.addNewSlide('MAIN');
 
-    const allSlidePromises = [];
     slides.forEach((slideFilename, slideIndex) => {
         if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
             allSlidePromises.push(new Promise((resolve, reject) => {
@@ -204,15 +199,8 @@ function writePptx(category, slides, fileResolve, fileReject) {
         }
     });
 
-    // wait to save until all are done.
-    Promise.all(allSlidePromises).then(() => {
-        // save the pptx
-        pptx.save(path.join('.', category, `name-that-frame-${todayStamp}.pptx`), (filename) => {
-            fileResolve(filename);
-        });
-    }, (err) => {
-        fileReject(err);
-    });
+    // add spacer
+    pptx.addNewSlide('MAIN');
 }
 
 /**
@@ -230,10 +218,20 @@ function numberAndJoin(slides) {
 
 // let's do this
 getDirectories((directories) => {
+    // create a pptx
+    const pptx = new PptxGenJs();
+    pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px
+    pptx.defineSlideMaster({
+        title: 'MAIN',
+        bkgd: '000000'
+    });
+
     const allFilePromises = [];
     directories.forEach((category) => {
         allFilePromises.push(new Promise((fileResolve, fileReject) => {
             fs.readdir(path.join('.', category), (err, filenames) => {
+
+                // TODO: shit. I need to read all the directories, create a master slide file with a map of cat->slide order, then do pptx
                 if (err) {
                     fileReject(err);
                 }
@@ -243,8 +241,22 @@ getDirectories((directories) => {
                 let shuffled = fyShuffle(deDuped); // shuffle the array for slide output
                 shuffled = limitArrayTo(shuffled, 75); // take the top x
                 const output = filterFilenames(shuffled); // clean up the names for bingo cards
+
+                // TODO:
                 writeSlideTextFiles(category, output.join(''), numberAndJoin(shuffled),
-                    writePptx.call(writePptx, category, shuffled, fileResolve, fileReject));
+                    writePptx.call(writePptx, category, shuffled, pptx));
+
+
+                // wait to save until all are done.
+                Promise.all(allSlidePromises).then(() => {
+                    // save the pptx
+                    pptx.save(path.join('.', category, `name-that-frame-${todayStamp}.pptx`), (filename) => {
+                        fileResolve(filename);
+                    });
+                }, (err) => {
+                    fileReject(err);
+                });
+
             });
         }));
     });
