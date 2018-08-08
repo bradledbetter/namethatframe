@@ -14,24 +14,24 @@ const todayStamp = moment().format('YYYY-MM-DD');
  * @param {string} slideList text for slidelist file
  * @param {function(Array<string>)} callback call this when done so we can make a pptx
  */
-function writeSlideTextFiles(category, movieNames, slideList, callback) {
-    // write the movie name file
-    fs.writeFile(path.join('.', category, `movie-names-${todayStamp}.txt`), movieNames, (err) => {
+function writeSlideCallSheet(slideMap, callback) {
+    let slideList = '';
+    // iterate over the map
+    slideMap.forEach((slides, category) => {
+        str += category + '\n';
+        slides.forEach(slide => str += slide + '\n');
+        str += '\n';
+    });
+
+    fs.writeFile(`slide-list-${todayStamp}.txt`, slideList, (err) => {
         if (err) {
             console.error(err);
             process.exit();
         }
 
-        fs.writeFile(path.join('.', category, `slide-list-${todayStamp}.txt`), slideList, (err) => {
-            if (err) {
-                console.error(err);
-                process.exit();
-            }
-
-            if (callback && typeof callback === 'function') {
-                callback(slideList);
-            }
-        });
+        if (callback && typeof callback === 'function') {
+            callback(slideList);
+        }
     });
 }
 
@@ -152,55 +152,49 @@ const allSlidePromises = [];
 
 /**
  * Add to pptx slideshow
- * @param {string} category slide folder name
- * @param {Array<string>} slides random order list of slides
+ * @param {Map<string, string[]>} slideMap
  * @param {object} pptx PPTX instance
  */
-function writePptx(category, slides, pptx) {
+function writePptx(slideMap, pptx) {
+    slideMap.forEach((slides, category) => {
+        // add round title
+        const titleSlide = pptx.addNewSlide('MAIN');
+        titleSlide.addText(category); // TODO:
 
-    // add round title TODO: text
-    pptx.addNewSlide('MAIN');
+        slides.forEach((slideFilename, slideIndex) => {
+            if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
+                const slidePath = path.join('.', category, slideFilename);
+                console.log(`${category}, ${slideIndex}: ${slidePath}`);
+                const slide = pptx.addNewSlide('MAIN');
 
-    slides.forEach((slideFilename, slideIndex) => {
-        if (slideFilename.match(/\.(png|jpg|gif)$/) !== null) {
-            allSlidePromises.push(new Promise((resolve, reject) => {
-                try {
-                    const slidePath = path.join('.', category, slideFilename);
-                    console.log(`${slideIndex}: ${slidePath}`);
-                    const slide = pptx.addNewSlide('MAIN');
+                // get image size synchronously. Probably slow, but easy to code.
+                const image = sharp(slidePath);
+                image.metadata((err, imgData) => {
+                    if (err) {
+                        console.error(err);
+                        process.exit();
+                    }
 
-                    // get image size synchronously. Probably slow, but easy to code.
-                    const image = sharp(slidePath);
-                    image.metadata((err, imgData) => {
-                        if (err) {
-                            console.error(err);
-                            process.exit();
+                    // NOTE: we need to include the original width and height for the aspect ratio to be maintained
+                    slide.addImage({
+                        path: slidePath,
+                        x: 0,
+                        y: 0,
+                        w: imgData.width / 72,
+                        h: imgData.height / 72,
+                        sizing: {
+                            type: 'contain',
+                            w: MAX_IMAGE_WIDTH_PX / 72,
+                            h: MAX_IMAGE_HEIGHT_PX / 72
                         }
-
-                        // NOTE: we need to include the original width and height for the aspect ratio to be maintained
-                        slide.addImage({
-                            path: slidePath,
-                            x: 0,
-                            y: 0,
-                            w: imgData.width / 72,
-                            h: imgData.height / 72,
-                            sizing: {
-                                type: 'contain',
-                                w: MAX_IMAGE_WIDTH_PX / 72,
-                                h: MAX_IMAGE_HEIGHT_PX / 72
-                            }
-                        });
-                        resolve(slideFilename);
                     });
-                } catch (ex) {
-                    reject(ex);
-                }
-            }));
-        }
-    });
+                });
+            }
+        });
 
-    // add spacer
-    pptx.addNewSlide('MAIN');
+        // add spacer
+        pptx.addNewSlide('MAIN');
+    });
 }
 
 /**
@@ -227,46 +221,43 @@ getDirectories((directories) => {
     });
 
     const allFilePromises = [];
+    const slideMap = new Map();
     directories.forEach((category) => {
-        allFilePromises.push(new Promise((fileResolve, fileReject) => {
+        allFilePromises.push(new Promise((dirResolve, dirReject) => {
             fs.readdir(path.join('.', category), (err, filenames) => {
-
-                // TODO: shit. I need to read all the directories, create a master slide file with a map of cat->slide order, then do pptx
                 if (err) {
-                    fileReject(err);
+                    dirReject(err);
                 }
 
+                // set a shiffled list of slides
                 const deDuped = removeDuplicates(filenames);
-
                 let shuffled = fyShuffle(deDuped); // shuffle the array for slide output
-                shuffled = limitArrayTo(shuffled, 75); // take the top x
+                shuffled = limitArrayTo(shuffled, 15); // take the top x
                 const output = filterFilenames(shuffled); // clean up the names for bingo cards
-
-                // TODO:
-                writeSlideTextFiles(category, output.join(''), numberAndJoin(shuffled),
-                    writePptx.call(writePptx, category, shuffled, pptx));
-
-
-                // wait to save until all are done.
-                Promise.all(allSlidePromises).then(() => {
-                    // save the pptx
-                    pptx.save(path.join('.', category, `name-that-frame-${todayStamp}.pptx`), (filename) => {
-                        fileResolve(filename);
-                    });
-                }, (err) => {
-                    fileReject(err);
-                });
-
+                slideMap.set(category, output);
+                dirResolve(slideMap);
             });
         }));
     });
 
-    // log a message when the file writes have been called
-    // it seems we can wait for the program to exit on its own when all the disk operations are done..?
-    Promise.all(allFilePromises).then(() => {
-        console.log('Finishing up file writing, then exiting...');
+
+    // wait to save until all are done.
+    Promise.all(allSlidePromises).then(() => {
+        writeSlideCallSheet(slideMap, () => {
+            writePptx(slideMap, pptx)
+                .then(() => {
+                    try {
+                        pptx.save(path.join('.', category, `NtF-${todayStamp}.pptx`), (filename) => {
+                            console.log(`Finishing up writing ${filename}, then exiting...`);
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        process.exit(1);
+                    }
+                });
+        });
     }, (err) => {
         console.error(err);
         process.exit(1);
-    })
+    });
 });
