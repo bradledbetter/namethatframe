@@ -161,8 +161,8 @@ function writePptx(slideMap) {
     slideMap.forEach((slides, category) => {
         // add round title
         const titleSlide = pptx.addNewSlide('MAIN');
-        console.log(`Round ${round++}: ${category}\nPoints for title, year, and director.`);
-        titleSlide.addText(`Round ${round++}: ${category}\nPoints for title, year, and director.`, {
+        console.log(`Round ${round}: ${category}\nPoints for title, year, and director.`);
+        titleSlide.addText(`Round ${round}: ${category}\nPoints for title, year, and director.`, {
             x: 0,
             y: 0,
             w: '100%',
@@ -172,9 +172,10 @@ function writePptx(slideMap) {
             valign: 'middle',
             fontFace: 'Arial',
             fontSize: 60,
-            color: '#ffffff',
+            color: 'ffffff',
             isTextBox: true
         });
+        round++;
 
         slides.forEach((slideData, slideIndex) => {
             console.log(`${category}, ${slideIndex}: ${slideData.slidePath}`);
@@ -187,7 +188,7 @@ function writePptx(slideMap) {
                 .then(imgData => {
                     // NOTE: we need to include the original width and height for the aspect ratio to be maintained
                     slide.addImage({
-                        path: slideData.slidePath,
+                        path: path.join('.', slideData.slidePath),
                         x: 0,
                         y: 0,
                         w: imgData.width / 72,
