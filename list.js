@@ -93,7 +93,7 @@ function fyShuffle(iArray) {
  * @param {Promis<string[]>} function to call with directory names
  */
 function getDirectories() {
-    return fs.readdir('.')
+    return fs.readdirAsync('.')
         .then(dirItems => {
             const ignoreDirs = [ '.', '..', 'node_modules' ];
             const directories = [];
@@ -131,7 +131,7 @@ function writeSlideCallSheet(slideMap) {
         slideList += '\n';
     });
 
-    return fs.writeFile(`slide-list-${todayStamp}.txt`, slideList)
+    return fs.writeFileAsync(`slide-list-${todayStamp}.txt`, slideList)
         .then(() => slideMap)
         .catch(err => {
             console.error('Error writing call sheet: ', err);
@@ -153,53 +153,64 @@ function writePptx(slideMap) {
         bkgd: '000000'
     });
 
+    const allSlidePromises = [];
+
     let round = 1;
 
     // slide = {slidePath: string; movieName: string;}
     slideMap.forEach((slides, category) => {
         // add round title
         const titleSlide = pptx.addNewSlide('MAIN');
+        console.log(`Round ${round++}: ${category}\nPoints for title, year, and director.`);
         titleSlide.addText(`Round ${round++}: ${category}\nPoints for title, year, and director.`, {
+            x: 0,
+            y: 0,
+            w: '100%',
+            h: '100%',
+            autofit: false,
             align: 'center',
             valign: 'middle',
             fontFace: 'Arial',
-            fontSize: 60
+            fontSize: 60,
+            color: '#ffffff',
+            isTextBox: true
         });
 
-        slides.forEach((slide, slideIndex) => {
-            const slidePath = path.join('.', category, slide);
-            console.log(`${category}, ${slideIndex}: ${slidePath}`);
+        slides.forEach((slideData, slideIndex) => {
+            console.log(`${category}, ${slideIndex}: ${slideData.slidePath}`);
             const slide = pptx.addNewSlide('MAIN');
 
             // get image size synchronously. Probably slow, but easy to code.
-            const image = sharp(slidePath);
-            image.metadata((err, imgData) => {
-                if (err) {
+            // TODO: promisify that metadata call?
+            const image = sharp(slideData.slidePath);
+            allSlidePromises.push(image.metadata()
+                .then(imgData => {
+                    // NOTE: we need to include the original width and height for the aspect ratio to be maintained
+                    slide.addImage({
+                        path: slideData.slidePath,
+                        x: 0,
+                        y: 0,
+                        w: imgData.width / 72,
+                        h: imgData.height / 72,
+                        sizing: {
+                            type: 'contain',
+                            w: MAX_IMAGE_WIDTH_PX / 72,
+                            h: MAX_IMAGE_HEIGHT_PX / 72
+                        }
+                    });
+                })
+                .catch(err => {
                     console.error(err);
-                    process.exit();
-                }
-
-                // NOTE: we need to include the original width and height for the aspect ratio to be maintained
-                slide.addImage({
-                    path: slidePath,
-                    x: 0,
-                    y: 0,
-                    w: imgData.width / 72,
-                    h: imgData.height / 72,
-                    sizing: {
-                        type: 'contain',
-                        w: MAX_IMAGE_WIDTH_PX / 72,
-                        h: MAX_IMAGE_HEIGHT_PX / 72
-                    }
-                });
-            });
+                    process.exit(1);
+                }));
         });
 
         // add spacer
         pptx.addNewSlide('MAIN');
     });
 
-    return Promise.resolve(pptx);
+    return Promise.all(allSlidePromises)
+        .then(() => pptx);
 }
 
 // let's do this
@@ -208,7 +219,7 @@ getDirectories()
         const slideListPromises = [];
         directories.forEach(category => {
             slideListPromises.push(
-                fs.readdir(path.join('.', category))
+                fs.readdirAsync(path.join('.', category))
                     .then(filenames => {
                         const deDuped = cleanUpFileList(filenames);
                         // generate the full file path and human readable name for slide, and have that object be the 'slide'
@@ -219,7 +230,7 @@ getDirectories()
                         return [ category, fyShuffle(slideList) ];
                     }))
         });
-        return slideListPromises;
+        return Promise.all(slideListPromises);
     })
     .catch(err => {
         console.error('Error reading filenames: ', err);
