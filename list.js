@@ -161,8 +161,8 @@ function writePptx(slideMap) {
     slideMap.forEach((slides, category) => {
         // add round title
         const titleSlide = pptx.addNewSlide('MAIN');
-        console.log(`Round ${round}: ${category}\nPoints for title, year, and director.`);
-        titleSlide.addText(`Round ${round}: ${category}\nPoints for title, year, and director.`, {
+        console.log(`Round ${round}: ${category}\nPoints for title and year.`);
+        titleSlide.addText(`Round ${round}: ${category}\nPoints for title and year.`, {
             x: 0,
             y: 0,
             w: '100%',
