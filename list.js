@@ -255,3 +255,7 @@ getDirectories()
         console.error(err);
         process.exit(1);
     });
+
+// todo look at pdfkit for generating bingo card pdfs http://pdfkit.org/
+// todo look at ways of taking a random sample of slides: https://en.wikipedia.org/wiki/Reservoir_sampling
+// * I could just fyShuffle and slice()
