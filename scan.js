@@ -1,6 +1,7 @@
 const Promise = require('bluebird');
 const fs = Promise.promisifyAll(require('fs'));
 const path = require('path');
+const { pick } = require('lodash');
 const fuzzy = require('fuzzy');
 const chalk = require('chalk');
 const clear = require('clear');
@@ -9,6 +10,7 @@ const inquirer = require('inquirer');
 inquirer.registerPrompt('autocomplete', require('inquirer-autocomplete-prompt'));
 const cconsole = require('./color-console');
 const { titleCase, isFilenameOK } = require('./common');
+const tmdb = require('./moviedb-api');
 
 /**
  * An entry in the movie db
@@ -275,6 +277,11 @@ async function askIfChangesNeeded(movie) {
           key: 'n',
         },
         {
+          name: 'Ask TMDB',
+          value: 'tmdb',
+          key: 'a',
+        },
+        {
           name: 'Quit',
           value: 'quit',
           key: 'q',
@@ -285,13 +292,82 @@ async function askIfChangesNeeded(movie) {
 
   switch (answer.editFile) {
     case 'yes':
-      const newMovie = await promptFileChanges(movie);
-      return newMovie;
+      return await promptFileChanges(movie);
+    case 'tmdb':
+      return await askTMDB(movie);
     case 'no':
       return movie;
     case 'quit':
       throw new QuitException([ movie ]);
   }
+}
+
+async function askTMDB(movie) {
+  const movieSearch = await tmdb.searchMovie(movie.movieTitle.toLocaleLowerCase());
+
+  if (movieSearch.length === 0) {
+    cconsole.info('No matches found', 'yellow');
+    return await askIfChangesNeeded(movie);
+  }
+
+  const page = 0;
+  const pageSize = 10;
+  let answer;
+
+  do {
+    const choices = movieSearch
+      .slice(page * pageSize, page * pageSize + pageSize)
+      .map((movie, idx) => {
+        return {
+          name: `${movie.movieTitle} - ${movie.movieYear}`,
+          value: idx,
+        };
+      });
+
+    if (page > 0) {
+      choices.push({
+        name: 'Prev page',
+        value: 'back',
+      });
+    }
+
+    if (!(page * pageSize + pageSize >= movieSearch.length)) {
+      choices.push({
+        name: 'Next page',
+        value: 'next',
+      });
+    }
+
+    choices.push({
+      name: 'Cancel',
+      value: 'cancel',
+    });
+
+    answer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'accept',
+        message: 'Which would you like to use?',
+        default: 0,
+        choices,
+      }
+    ]);
+
+    if (answer.accept === 'next') {
+      page += 1;
+    }
+
+    if (answer.accept === 'back') {
+      page -= 1;
+    }
+  } while (answer.accept === 'next' || answer.accept === 'back');
+
+  if (answer.accept === 'cancel') {
+    return await askIfChangesNeeded(movie);
+  }
+
+  const { movieTitle, movieYear } = pick(movieSearch[ answer.accept ], ['movieTitle', 'movieYear']);
+  return Object.assign({}, movie, { movieTitle, movieYear });
 }
 
 /**
@@ -358,6 +434,7 @@ async function promptContinue() {
  * Show fields, allow user to make changes, save results
  */
 async function promptFileChanges(movie) {
+  // prompt based on what was passed in
   const newFields = await inquirer.prompt([
     {
       type: 'input',
@@ -373,11 +450,8 @@ async function promptFileChanges(movie) {
     }
   ]);
 
-  return Object.assign(
-    {},
-    movie,
-    (({ movieTitle = movie.movieTitle, movieYear = movie.movieYear }) => ({ movieTitle, movieYear }))(newFields)
-  );
+  const { movieTitle, movieYear } = pick(newFields, [ 'movieTitle', 'movieYear' ]);
+  return Object.assign({}, movie, { movieTitle, movieYear });
 }
 
 /**
