@@ -14,7 +14,7 @@ const tmdb = require('./moviedb-api');
 
 /**
  * An entry in the movie db
- * @typedef {Object<string, any>} MovieEntry
+ * @typedef {Object<string, string>} MovieEntry
  * @property {string} filePath Path to the still image
  * @property {string} movieTitle Title of the movie the still is from
  * @property {string} movieYear The 4 digit year the movie was released

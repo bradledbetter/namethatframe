@@ -45,8 +45,34 @@ function isFilenameOK(filename) {
   return filename.match(/\.(png|jpg|gif)$/) !== null && filename[ 0 ] !== '.';
 }
 
+/**
+ * Fisher-Yates Shuffle an array in place.
+ * @param {Array} iArray
+ * @return {Array}
+ */
+function fyShuffle(iArray) {
+  let currentIndex = iArray.length;
+  let temporaryValue;
+  let randomIndex;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = iArray[ currentIndex ];
+    iArray[ currentIndex ] = iArray[ randomIndex ];
+    iArray[ randomIndex ] = temporaryValue;
+  }
+
+  return iArray;
+}
+
 module.exports = {
   capitalize,
   titleCase,
   isFilenameOK,
+  fyShuffle,
 };

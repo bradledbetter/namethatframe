@@ -65,3 +65,4 @@ typings/
 .DS_Store
 stills.zip
 movies.bak.json
+test-output.pdf

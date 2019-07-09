@@ -7,27 +7,7 @@ const PptxGenJs = require('pptxgenjs');
 const MAX_IMAGE_WIDTH_PX = 958;
 const MAX_IMAGE_HEIGHT_PX = 540;
 const todayStamp = moment().format('YYYY-MM-DD');
-
-/**
- * Convert a string to title case
- * @param {string} txt
- * @return {string}
- */
-function titleCase(txt) {
-    let retString = txt.replace(/\w\S*/g, function(txt) {
-        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-    });
-    return retString.replace(/_/g, "'"); // eslint-disable-line
-}
-
-/**
- * Check whether this is a valid slide filename
- * @param {string} filename
- * @returns {boolean}
- */
-function isFilenameOK(filename) {
-    return filename.match(/\.(png|jpg|gif)$/) !== null && filename[ 0 ] !== '.';
-}
+const { titleCase, isFilenameOK, fyShuffle } = require('./common');
 
 /**
  * Remove duplicates from an array of strings, ignores non images and system files
@@ -62,30 +42,6 @@ function filenameToMovie(filename) {
         .replace(/_/g, '');
 }
 
-/**
- * Fisher-Yates Shuffle an array in place.
- * @param {Array} iArray
- * @return {Array}
- */
-function fyShuffle(iArray) {
-    let currentIndex = iArray.length;
-    let temporaryValue;
-    let randomIndex;
-
-    // While there remain elements to shuffle...
-    while (0 !== currentIndex) {
-        // Pick a remaining element...
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-
-        // And swap it with the current element.
-        temporaryValue = iArray[ currentIndex ];
-        iArray[ currentIndex ] = iArray[ randomIndex ];
-        iArray[ randomIndex ] = temporaryValue;
-    }
-
-    return iArray;
-}
 
 /**
  * Get a list of the directories in this directory.
