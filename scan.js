@@ -7,6 +7,7 @@ const chalk = require('chalk');
 const clear = require('clear');
 const figlet = require('figlet');
 const inquirer = require('inquirer');
+const open = require('open');
 inquirer.registerPrompt('autocomplete', require('inquirer-autocomplete-prompt'));
 const cconsole = require('./color-console');
 const { titleCase, isFilenameOK } = require('./common');
@@ -208,15 +209,15 @@ function guessDetailsFromFilename(movie) {
   */
   const returnMovie = { ...movie };
   const parsed = path.parse(movie.filePath);
-  let matches = parsed.name.match(/(\d{4})[\s\-\)\b]?$/); // note: questioning that ? after the separator
+  let matches = parsed.name.match(/[\s\-\(\b]?(\d{4})[\s\-\)\b]?$/); // note: questioning that ? after the separator
   if (matches !== null) {
     returnMovie.movieYear = matches[ 1 ];
-    returnMovie.movieTitle = parsed.name.slice(0, 0 - matches[ 0 ].length);
+    returnMovie.movieTitle = parsed.name.slice(0, 0 - matches[ 0 ].length).trim();
   } else {
     returnMovie.movieTitle = parsed.name;
   }
 
-  matches = returnMovie.movieTitle.match(/([\s\w:¡!\?-½'"]+)[\s\-\(\b]*$/);
+  matches = returnMovie.movieTitle.match(/([^\(]+)/);
   if (matches !== null) {
     returnMovie.movieTitle = titleCase(matches[ 1 ].trim());
   }
@@ -324,6 +325,11 @@ async function askTMDB(movie) {
         };
       });
 
+    choices.unshift({
+      name: 'Open still in browser',
+      value: 'open',
+    })
+
     if (page > 0) {
       choices.push({
         name: 'Prev page',
@@ -360,7 +366,11 @@ async function askTMDB(movie) {
     if (answer.accept === 'back') {
       page -= 1;
     }
-  } while (answer.accept === 'next' || answer.accept === 'back');
+
+    if (answer.accept === 'open') {
+      open(path.join('.', movie.filePath))
+    }
+  } while (answer.accept === 'next' || answer.accept === 'back' || answer.accept === 'open');
 
   if (answer.accept === 'cancel') {
     return await askIfChangesNeeded(movie);
