@@ -304,50 +304,40 @@ async function askIfChangesNeeded(movie) {
 }
 
 async function askTMDB(movie) {
-  const movieSearch = await tmdb.searchMovie(movie.movieTitle.toLocaleLowerCase());
+  let movieSearch;
+  try {
+    movieSearch = await tmdb.searchMovie(movie.movieTitle.toLocaleLowerCase());
+  } catch (ex) {
+    cconsole.error(ex.message);
+    hardExit();
+  }
 
   if (movieSearch.length === 0) {
+    // todo askIfChangesNeeded calls clear(), so our message gets eaten
     cconsole.info('No matches found', 'yellow');
     return await askIfChangesNeeded(movie);
   }
 
-  const page = 0;
-  const pageSize = 10;
   let answer;
 
   do {
-    const choices = movieSearch
-      .slice(page * pageSize, page * pageSize + pageSize)
-      .map((movie, idx) => {
-        return {
-          name: `${movie.movieTitle} - ${movie.movieYear}`,
-          value: idx,
-        };
-      });
-
-    choices.unshift({
-      name: 'Open still in browser',
-      value: 'open',
-    })
-
-    if (page > 0) {
-      choices.push({
-        name: 'Prev page',
-        value: 'back',
-      });
-    }
-
-    if (!(page * pageSize + pageSize >= movieSearch.length)) {
-      choices.push({
-        name: 'Next page',
-        value: 'next',
-      });
-    }
-
-    choices.push({
-      name: 'Cancel',
-      value: 'cancel',
-    });
+    const choices = [
+      {
+        name: 'Open still in browser',
+        value: 'open',
+      },
+      {
+        name: 'Cancel',
+        value: 'cancel',
+      },
+      new inquirer.Separator(),
+    ]
+      .concat(movieSearch.map((movie, idx) => {
+          return {
+            name: `${movie.movieTitle} - ${movie.movieYear}`,
+            value: idx,
+          };
+        }));
 
     answer = await inquirer.prompt([
       {
@@ -356,27 +346,20 @@ async function askTMDB(movie) {
         message: 'Which would you like to use?',
         default: 0,
         choices,
+        pageSize: 12,
       }
     ]);
-
-    if (answer.accept === 'next') {
-      page += 1;
-    }
-
-    if (answer.accept === 'back') {
-      page -= 1;
-    }
 
     if (answer.accept === 'open') {
       open(path.join('.', movie.filePath))
     }
-  } while (answer.accept === 'next' || answer.accept === 'back' || answer.accept === 'open');
+  } while (answer.accept === 'open');
 
   if (answer.accept === 'cancel') {
     return await askIfChangesNeeded(movie);
   }
 
-  const { movieTitle, movieYear } = pick(movieSearch[ answer.accept ], ['movieTitle', 'movieYear']);
+  const { movieTitle, movieYear } = pick(movieSearch[ answer.accept ], [ 'movieTitle', 'movieYear' ]);
   return Object.assign({}, movie, { movieTitle, movieYear });
 }
 
