@@ -6,6 +6,7 @@ const open = require('open');
 const { fyShuffle } = require('./common');
 const { writeSlideCallSheet, writeSlideshowPptx } = require('./slideshow');
 const { makeCards } = require('./card-pdf');
+const cconsole = require('./color-console');
 
 const gameLength = 80; // just picking a number. Research indicates the average bingo game is something like 70 calls.
 
@@ -80,9 +81,23 @@ function removeDuplicates(movieMap) {
 }
 
 /**
+ * Clear the screen, print the fancy ascii art
+ */
+function clearScreen() {
+  clear();
+  cconsole.log(
+    chalk.green(
+      figlet.textSync('NtF Bingo Round Generator', { horizontalLayout: 'standard' })
+    )
+  );
+}
+
+/**
  * main function
  */
 async function main() {
+  clearScreen();
+
   let args = [];
   if (process.argv.length > 2) {
     args = process.argv.slice(2);
@@ -131,7 +146,7 @@ async function main() {
   cardsDoc.pipe(fs.createWriteStream(cardsFilename));
   cardsDoc.end();
 
-  // todo: ask to open card pdf, slide call sheet for printing
+  // ask to open card pdf, slide call sheet for printing
   const answer = await inquirer.prompt([
     {
       type: 'confirm',

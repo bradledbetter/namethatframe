@@ -313,9 +313,33 @@ async function askTMDB(movie) {
   }
 
   if (movieSearch.length === 0) {
-    // todo askIfChangesNeeded calls clear(), so our message gets eaten
     cconsole.info('No matches found', 'yellow');
-    return await askIfChangesNeeded(movie);
+    const answer = await inquirer.prompt([
+      {
+        type: 'expand',
+        name: 'continue',
+        message: 'Continue?',
+        default: 0,
+        choices: [
+          {
+            name: 'Yes',
+            value: 'yes',
+            key: 'y',
+          },
+          {
+            name: 'Quit',
+            value: 'quit',
+            key: 'q',
+          }
+        ]
+      }
+    ]);
+    if (answer.continue === 'yes') {
+      return await askIfChangesNeeded(movie);
+    } else {
+      hardExit();
+      return;
+    }
   }
 
   let answer;
