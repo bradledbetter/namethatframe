@@ -2,6 +2,7 @@ const Promise = require('bluebird');
 const fs = Promise.promisifyAll(require('fs'));
 const path = require('path');
 const inquirer = require('inquirer');
+const open = require('open');
 const { fyShuffle } = require('./common');
 const { writeSlideCallSheet, writeSlideshowPptx } = require('./slideshow');
 const { makeCards } = require('./card-pdf');
@@ -125,9 +126,25 @@ async function main() {
   const cardCount = +answer.numCards;
 
   // pass args to makeCards
-  makeCards(cardCount, shuffledNames, true);
+  const cardsDoc = makeCards(cardCount, shuffledNames, true);
+  const cardsFilename = `bingo-cards-${moment().format('YYYY-MM-DD_HH:mm:ss')}.pdf`;
+  cardsDoc.pipe(fs.createWriteStream(cardsFilename));
+  cardsDoc.end();
 
   // todo: ask to open card pdf, slide call sheet for printing
+  const answer = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'continue',
+      message: 'Would you like to open files for printing?',
+      default: true,
+    }
+  ]);
+
+  if (answer.confirm) {
+    open(callSheetName);
+    open(cardsFilename);
+  }
 }
 
 main();
