@@ -22,7 +22,9 @@ function titleCase(txt) {
     return retString.replace(/_/g, "'"); // eslint-disable-line
   } else { // v2
     // Split by whitespace, capitalize words > 3 characters long (unless the short word is first), convert _ to ', join with ' '
-    const title = txt.replace(/_/g, "'").replace(/[\(\)\[\]]+/g, '');
+    const title = txt
+      .replace(/[_’]/g, "'")
+      .replace(/[\(\)\[\]]+/g, '');
     const tokens = title.split(/\s+/);
     return tokens.reduce((acc, word, idx) => {
       if (idx > 0 && word.length < 4) {
