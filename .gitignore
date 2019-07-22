@@ -60,9 +60,10 @@ typings/
 # specific to this repo
 *.txt
 *.pptx
+*.pdf
+stills.zip
+movies.bak.json
+
 # ignore subdirectories
 **/
 .DS_Store
-stills.zip
-movies.bak.json
-test-output.pdf

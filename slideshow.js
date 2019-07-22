@@ -8,18 +8,18 @@ const PptxGenJs = require('pptxgenjs');
 
 const MAX_IMAGE_WIDTH_PX = 958;
 const MAX_IMAGE_HEIGHT_PX = 540;
-
+const DATE_TIME_FORMAT = 'YYYY-MM-DD_HH-mm-ss';
 
 /**
  * Write the movie names to a file in the order they are in the array
  * @param {string[]} names array of movie names in order
  * @returns {string} the filename that was saved
  */
-async function writeSlideCallSheet(names) {
+function writeSlideCallSheet(names) {
   try {
-    const fileStamp = moment().format('YYYY-MM-DD_HH:mm:ss');
+    const fileStamp = moment().format(DATE_TIME_FORMAT);
     const filename = `slide-list-${fileStamp}.txt`;
-    await fs.writeFile(filename, names.join("\n"));
+    fs.writeFileSync(filename, names.map((n, i) => `${i + 1}. ${n}`).join("\n"));
     return filename;
   } catch (ex) {
     console.error('Error writing call sheet: ', ex);
@@ -27,12 +27,30 @@ async function writeSlideCallSheet(names) {
 }
 
 /**
+ * Wraps the Sharp.metadata call in a promise so I can await it
+ * @param {Sharp} img a sharp instance created from an image
+ * @returns {Promise}
+ */
+async function imageMeta(img) {
+  return new Promise((resolve, reject) => {
+    img.metadata((error, metadata) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve(metadata);
+    });
+  });
+}
+
+
+/**
  * Write a pptx as a slideshow
  * @param {string[]} slides array of paths to slides
+ * @returns {string} name of the powerpoint file written
  */
-function writeSlideshowPptx(slides) {
+function writePptx(slides) {
   // create a pptx
-  const fileStamp = moment().format('YYYY-MM-DD_HH:mm:ss');
+  const fileStamp = moment().format(DATE_TIME_FORMAT);
   const pptx = new PptxGenJs();
   const slideDim = { w: 13.3, h: 7.5 };
   pptx.setLayout('LAYOUT_WIDE');// 13.33 x 7.5 inches | 957.6 x 540 px (72dpi)
@@ -43,12 +61,13 @@ function writeSlideshowPptx(slides) {
 
   const allSlidePromises = [];
 
-  slides.forEach((slidePath, idx) => {
+  slides.forEach(async (slidePath, idx) => {
+    // todo: nothing is getting added to to the slideshow.
     const slide = pptx.addNewSlide('MAIN');
-    const image = sharp(slideData.slidePath);
+    const image = sharp(slidePath);
     let imgData;
     try {
-      imgData = await image.metadata();
+      imgData = await imageMeta(image);
     } catch (ex) {
       console.error(err);
       process.exit(1);
@@ -56,7 +75,7 @@ function writeSlideshowPptx(slides) {
 
     // NOTE: we need to include the original width and height for the aspect ratio to be maintained
     slide.addImage({
-      path: path.join('.', slideData.slidePath),
+      path: path.join('.', slidePath),
       x: 0,
       y: 0,
       w: imgData.width / 72,
@@ -70,7 +89,7 @@ function writeSlideshowPptx(slides) {
 
     slide.addText(`${idx + 1}`, {
       x: slideDim.w - .50,
-      y: slideDime.h - .50,
+      y: slideDim.h - .50,
       w: .25,
       h: .25,
       autofit: false,
@@ -84,13 +103,13 @@ function writeSlideshowPptx(slides) {
     });
   });
 
-  pptx.save(`NtF-${fileStamp}.pptx`, (filename) => {
-    console.log(`Finishing up writing ${filename}...`);
-  });
+  const filename = `NtF-${fileStamp}.pptx`;
+  pptx.save(filename, () => {});
+  return filename;
 }
 
 
 module.exports = {
   writeSlideCallSheet,
-  writePptx: writeSlideshowPptx
+  writePptx
 }

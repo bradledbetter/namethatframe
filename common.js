@@ -51,8 +51,13 @@ function isFilenameOK(filename) {
  * Fisher-Yates Shuffle an array in place.
  * @param {Array} iArray
  * @return {Array}
+ * @throws if iArray is not an Array
  */
 function fyShuffle(iArray) {
+  if (!Array.isArray(iArray)) {
+    throw new Error('fyShuffle: tried to shuffle something that is not an array.');
+  }
+
   let currentIndex = iArray.length;
   let temporaryValue;
   let randomIndex;

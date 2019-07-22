@@ -166,6 +166,7 @@ function fillBoxes(doc, topData, bottomData, useFree) {
         doc.text("Free Space", topGrid[ gridIndex ].x, topGrid[ gridIndex ].y + cellSize.h / 2, opts);
         doc.text("Free Space", bottomGrid[ gridIndex ].x, bottomGrid[ gridIndex ].y + cellSize.h / 2, opts);
       } else {
+        // todo: need to calculate the height of the text to determine y position
         doc.text(topData[ dataIndex ], topGrid[ gridIndex ].x, topGrid[ gridIndex ].y + cellSize.h / 2, opts);
         doc.text(bottomData[ dataIndex ], bottomGrid[ gridIndex ].x, bottomGrid[ gridIndex ].y + cellSize.h / 2, opts);
       }

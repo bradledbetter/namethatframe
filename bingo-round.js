@@ -3,12 +3,16 @@ const fs = Promise.promisifyAll(require('fs'));
 const path = require('path');
 const inquirer = require('inquirer');
 const open = require('open');
+const moment = require('moment');
+const clear = require('clear');
+const figlet = require('figlet');
+const chalk = require('chalk');
 const { fyShuffle } = require('./common');
-const { writeSlideCallSheet, writeSlideshowPptx } = require('./slideshow');
+const { writeSlideCallSheet, writePptx } = require('./slideshow');
 const { makeCards } = require('./card-pdf');
 const cconsole = require('./color-console');
 
-const gameLength = 80; // just picking a number. Research indicates the average bingo game is something like 70 calls.
+const gameLength = 200; // just picking a number. Research indicates the average bingo game is something like 70 calls.
 
 /**
  * An entry in the movie db
@@ -108,22 +112,22 @@ async function main() {
     process.exit();
   }
 
-  const movieMap = readMovieDB();
+  let movieMap = readMovieDB();
   movieMap = removeDuplicates(movieMap);
 
   // Get movie names and shuffle them, then pick the top 80.
-  const names = movieMap.keys();
+  const names = Array.from(movieMap.keys());
   const shuffledNames = fyShuffle(names).slice(0, gameLength);
 
   // save the call list
-  const callSheetName = await writeSlideCallSheet(shuffledNames);
+  const callSheetName = writeSlideCallSheet(shuffledNames);
 
   // save the powerpoint
-  const slides = shuffledNames.map((name) = movieMap.get(name));
-  await writeSlideshowPptx(slides);
+  const slides = shuffledNames.map((name) => movieMap.get(name));
+  writePptx(slides);
 
   // make cards
-  const answer = await inquirer.prompt([
+  let answer = await inquirer.prompt([
     {
       type: 'input',
       name: 'numCards',
@@ -142,12 +146,12 @@ async function main() {
 
   // pass args to makeCards
   const cardsDoc = makeCards(cardCount, shuffledNames, true);
-  const cardsFilename = `bingo-cards-${moment().format('YYYY-MM-DD_HH:mm:ss')}.pdf`;
+  const cardsFilename = `bingo-cards-${moment().format('YYYY-MM-DD_HH-mm-ss')}.pdf`;
   cardsDoc.pipe(fs.createWriteStream(cardsFilename));
   cardsDoc.end();
 
   // ask to open card pdf, slide call sheet for printing
-  const answer = await inquirer.prompt([
+  answer = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'continue',
