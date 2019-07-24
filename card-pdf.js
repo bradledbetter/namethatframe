@@ -148,10 +148,10 @@ function fillBoxes(doc, topData, bottomData, useFree) {
   doc.font(`${fontDir}/OpenSans-Regular.ttf`).fontSize(10);
 
   const opts = {
-    width: cellSize.w,
-    height: cellSize.h,
+    width: cellSize.w - 3,
+    height: cellSize.h - 3,
     align: 'center',
-    baseline: 'middle',
+    // baseline: 'middle',
   };
   doc.fillColor(textColor);
   const len = !!useFree ? 24 : 25;
@@ -166,9 +166,19 @@ function fillBoxes(doc, topData, bottomData, useFree) {
         doc.text("Free Space", topGrid[ gridIndex ].x, topGrid[ gridIndex ].y + cellSize.h / 2, opts);
         doc.text("Free Space", bottomGrid[ gridIndex ].x, bottomGrid[ gridIndex ].y + cellSize.h / 2, opts);
       } else {
-        // todo: need to calculate the height of the text to determine y position
-        doc.text(topData[ dataIndex ], topGrid[ gridIndex ].x, topGrid[ gridIndex ].y + cellSize.h / 2, opts);
-        doc.text(bottomData[ dataIndex ], bottomGrid[ gridIndex ].x, bottomGrid[ gridIndex ].y + cellSize.h / 2, opts);
+        let textHeight = doc.heightOfString(topData[ dataIndex ], opts);
+        doc.text(
+          topData[ dataIndex ],
+          topGrid[ gridIndex ].x,
+          topGrid[ gridIndex ].y + (cellSize.h - textHeight) / 2,
+          opts);
+
+        textHeight = doc.heightOfString(bottomData[ dataIndex ], opts);
+        doc.text(
+          bottomData[ dataIndex ],
+          bottomGrid[ gridIndex ].x,
+          bottomGrid[ gridIndex ].y + (cellSize.h - textHeight) / 2,
+          opts);
       }
     }
   }

@@ -124,13 +124,14 @@ async function main() {
 
   // save the powerpoint
   const slides = shuffledNames.map((name) => movieMap.get(name));
-  writePptx(slides);
+  await writePptx(slides);
 
   // make cards
   let answer = await inquirer.prompt([
     {
       type: 'input',
       name: 'numCards',
+      default: 20,
       message: 'How many cards should I generate? Minimum 2: ',
       validate: (input) => {
         const num = +input;
